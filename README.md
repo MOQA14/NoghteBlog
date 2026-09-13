@@ -9,16 +9,18 @@
 
 ## راه‌اندازی محلی
 
+**پیش‌نیاز: پایتون ۳.۱۰ یا بالاتر** (Wagtail 8 و جنگو 5.2 پایین‌تر را پشتیبانی نمی‌کنند).
+
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate          # ویندوز: .venv\Scripts\activate
 pip install -r requirements.txt
 
-cp .env.example .env          # مقادیر را ویرایش کنید
+cp .env.example .env               # اختیاری؛ بدونش هم اجرا می‌شود
 
 python manage.py migrate
 python manage.py createsuperuser
-python manage.py seed_demo    # اختیاری: محتوای نمونه برای تیم فرانت
+python manage.py seed_demo         # اختیاری: محتوای نمونه برای تیم فرانت
 python manage.py runserver
 ```
 
@@ -26,6 +28,18 @@ python manage.py runserver
 - پنل مدیریت: <http://localhost:8000/admin/>
 
 بدون `DATABASE_URL` از SQLite استفاده می‌شود، پس برای شروع به دیتابیس نیاز نیست.
+`manage.py` به‌صورت پیش‌فرض `config.settings.dev` را برمی‌دارد.
+
+### اگر بالا نیامد
+
+| نشانه | علت و راه حل |
+| --- | --- |
+| `SyntaxError` هنگام نصب یا اجرا | پایتون قدیمی است. `python3 --version` باید ۳.۱۰ به بالا باشد. |
+| `DisallowedHost` یا خطای ۴۰۰ | فایل `.env` شما `ALLOWED_HOSTS` پروداکشن دارد. در `config.settings.dev` این مقدار همیشه `["*"]` است و از `.env` خوانده نمی‌شود؛ اگر باز هم دیدید یعنی با تنظیمات پروداکشن اجرا می‌کنید. |
+| `ModuleNotFoundError: wagtail` | محیط مجازی فعال نیست. `source .venv/bin/activate` |
+| `no such table` | `python manage.py migrate` اجرا نشده. |
+| صفحه‌ی اصلی ۴۰۴ می‌دهد | دیتابیس بدون مایگریشن `0002_create_blog_index` ساخته شده. `manage.py migrate` را کامل اجرا کنید. |
+| خطای نصب `psycopg` | فقط برای PostgreSQL لازم است. برای کار لوکال با SQLite می‌توانید آن خط را از `requirements.txt` موقتاً بردارید. |
 
 ---
 
