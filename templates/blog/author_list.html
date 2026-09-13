@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load wagtailimages_tags blog_tags %}
+
+{% block title %}نویسندگان{% endblock %}
+{% block body_class %}page--author-list{% endblock %}
+
+{% block content %}
+<div class="container">
+  <header class="page-header">
+    <h1 class="page-header__title">نویسندگان</h1>
+  </header>
+
+  {% if authors %}
+    <ul class="term-grid">
+      {% for author in authors %}
+        <li class="term-card term-card--author">
+          <a href="{{ author.url }}">
+            {% if author.photo %}
+              {% image author.photo fill-96x96 format-webp class="term-card__avatar" alt="" %}
+            {% endif %}
+            <h2 class="term-card__title">{{ author.name }}</h2>
+            {% if author.job_title %}<p class="term-card__desc">{{ author.job_title }}</p>{% endif %}
+            <span class="term-card__count">{{ author.article_count|persian_digits }} مقاله</span>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty-state">هنوز نویسنده‌ای ثبت نشده است.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load wagtailimages_tags blog_tags %}
+
+{% block title %}{{ author.name }}{% endblock %}
+{% block meta_description %}{{ author.bio }}{% endblock %}
+{% block body_class %}page--author{% endblock %}
+
+{% block content %}
+<div class="container">
+  <header class="page-header page-header--author">
+    {% if author.photo %}
+      {% image author.photo fill-160x160 format-webp class="page-header__avatar" alt="" %}
+    {% endif %}
+    <div>
+      <p class="page-header__eyebrow">نویسنده</p>
+      <h1 class="page-header__title">{{ author.name }}</h1>
+      {% if author.job_title %}<p class="page-header__role">{{ author.job_title }}</p>{% endif %}
+      {% if author.bio %}<p class="page-header__intro">{{ author.bio }}</p>{% endif %}
+      {% with links=author.social_links %}
+        {% if links %}
+          <ul class="social-list">
+            {% for label, url in links %}
+              <li><a href="{{ url }}" rel="noopener noreferrer nofollow" target="_blank">{{ label }}</a></li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+      <p class="page-header__meta">{{ articles.paginator.count|persian_digits }} مقاله</p>
+    </div>
+  </header>
+
+  {% if articles %}
+    <div class="article-grid">
+      {% for article in articles %}
+        {% include "blog/includes/article_card.html" with article=article %}
+      {% endfor %}
+    </div>
+    {% include "blog/includes/pagination.html" with page_obj=articles %}
+  {% else %}
+    <p class="empty-state">از این نویسنده هنوز مقاله‌ای منتشر نشده است.</p>
+  {% endif %}
+</div>
+{% endblock %}

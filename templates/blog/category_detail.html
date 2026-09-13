@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load wagtailimages_tags blog_tags %}
+
+{% block title %}{{ category.name }}{% endblock %}
+{% block meta_description %}{{ category.description }}{% endblock %}
+{% block body_class %}page--category{% endblock %}
+
+{% block content %}
+<div class="container">
+  <header class="page-header">
+    <p class="page-header__eyebrow">دسته‌بندی</p>
+    <h1 class="page-header__title">{{ category.name }}</h1>
+    {% if category.description %}<p class="page-header__intro">{{ category.description }}</p>{% endif %}
+    <p class="page-header__meta">{{ articles.paginator.count|persian_digits }} مقاله</p>
+  </header>
+
+  {% if articles %}
+    <div class="article-grid">
+      {% for article in articles %}
+        {% include "blog/includes/article_card.html" with article=article %}
+      {% endfor %}
+    </div>
+    {% include "blog/includes/pagination.html" with page_obj=articles %}
+  {% else %}
+    <p class="empty-state">در این دسته‌بندی هنوز مقاله‌ای منتشر نشده است.</p>
+  {% endif %}
+</div>
+{% endblock %}

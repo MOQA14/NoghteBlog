@@ -1,0 +1,149 @@
+# NoghteBlog
+
+بلاگ مستقل مبتنی بر [Wagtail](https://wagtail.org) و جنگو.
+
+این پروژه عمداً **کوچک** نگه داشته شده: از میان همه‌ی امکانات Wagtail فقط
+سه چیز فعال است — **مقالات**، **دسته‌بندی‌ها** و **نویسندگان**.
+
+---
+
+## راه‌اندازی محلی
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+cp .env.example .env          # مقادیر را ویرایش کنید
+
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py seed_demo    # اختیاری: محتوای نمونه برای تیم فرانت
+python manage.py runserver
+```
+
+- بلاگ: <http://localhost:8000/>
+- پنل مدیریت: <http://localhost:8000/admin/>
+
+بدون `DATABASE_URL` از SQLite استفاده می‌شود، پس برای شروع به دیتابیس نیاز نیست.
+
+---
+
+## چه چیزی هست و چه چیزی نیست
+
+| هست | نیست |
+| --- | --- |
+| مقالات با پیش‌نویس/انتشار و تاریخچه‌ی نسخه‌ها | فرم‌ساز (`wagtail.contrib.forms`) |
+| دسته‌بندی‌ها (Snippet) | ریدایرکت‌ها (`wagtail.contrib.redirects`) |
+| نویسندگان (Snippet) | کتابخانه‌ی اسناد (از منو حذف شده) |
+| کتابخانه‌ی تصاویر | گردش‌کار تأیید محتوا (`WAGTAIL_WORKFLOW_ENABLED = False`) |
+| جست‌وجو، صفحه‌بندی، RSS، sitemap، robots | نتایج تبلیغاتی جست‌وجو |
+| API فقط-خواندنی (اختیاری) | چندزبانه بودن |
+
+> **چرا `wagtail.documents` نصب است؟** پنل مدیریت Wagtail ۸ وابستگی سخت به آن
+> دارد و بدونش بالا نمی‌آید. در `blog/wagtail_hooks.py` از منو حذف شده و در
+> ویرایشگر متن هم امکان درج سند فعال نیست.
+
+---
+
+## ساختار پروژه
+
+```
+config/                 تنظیمات، مسیرها، API
+  settings/
+    base.py             مشترک بین همه‌ی محیط‌ها
+    dev.py              توسعه
+    production.py       پروداکشن (dokploy)
+    test.py             تست
+blog/
+  models.py             ArticlePage, Category, Author, BlogIndexPage, BlogSettings
+  blocks.py             بلوک‌های بدنه‌ی مقاله (StreamField)
+  wagtail_hooks.py      سفارشی‌سازی پنل مدیریت
+  feeds.py              خوراک RSS
+  templatetags/         فیلترهای تاریخ شمسی و اعداد فارسی
+  management/commands/  seed_demo
+templates/              همه‌ی قالب‌های سمت کاربر
+static/css/
+  theme.css             ← توکن‌های طراحی (کار تیم فرانت)
+  blog.css              ساختار و چیدمان
+  custom.css            بازنویسی‌های اختصاصی پروژه
+docs/THEMING.md         راهنمای تیم فرانت
+```
+
+---
+
+## مدل محتوا
+
+**مقاله (`ArticlePage`)** — زیرمجموعه‌ی «فهرست مقالات»
+عنوان، اسلاگ، چکیده، تصویر شاخص، بدنه (StreamField)، نویسنده، دسته‌بندی‌ها،
+تاریخ انتشار، مقاله‌ی ویژه. زمان مطالعه خودکار محاسبه می‌شود.
+
+بلوک‌های بدنه: متن، سرتیتر، تصویر، نقل‌قول، کادر نکته، قطعه کد، ویدیو/امبد، HTML خام.
+
+**دسته‌بندی (`Category`)** — نام، اسلاگ، توضیح، تصویر
+**نویسنده (`Author`)** — نام، اسلاگ، عنوان شغلی، معرفی، تصویر، راه‌های ارتباطی،
+اتصال اختیاری به یک کاربر پنل
+
+**تنظیمات بلاگ (`BlogSettings`)** — در پنل زیر «تنظیمات»: نام بلاگ، شعار، لوگو،
+فاوآیکون، تصویر اشتراک‌گذاری، پاورقی، لینک سایت اصلی، شبکه‌های اجتماعی.
+
+---
+
+## نشانی‌ها
+
+| مسیر | توضیح |
+| --- | --- |
+| `/` | فهرست مقالات (با `?q=` جست‌وجو و `?page=` صفحه‌بندی) |
+| `/<اسلاگ-مقاله>/` | صفحه‌ی مقاله |
+| `/category/` | فهرست دسته‌بندی‌ها |
+| `/category/<اسلاگ>/` | مقالات یک دسته‌بندی |
+| `/author/` | فهرست نویسندگان |
+| `/author/<اسلاگ>/` | مقالات یک نویسنده |
+| `/feed/` | خوراک RSS |
+| `/sitemap.xml` , `/robots.txt` | سئو |
+| `/admin/` | پنل مدیریت |
+| `/api/v2/pages/` | API فقط-خواندنی |
+
+---
+
+## API فقط-خواندنی
+
+برای وقتی که یک پروژه‌ی دیگر بخواهد مقالات را داخل سایت خودش نشان بدهد:
+
+```
+GET /api/v2/pages/?type=blog.ArticlePage&fields=title,intro,cover_image,publish_date&limit=3
+```
+
+با `BLOG_API_ENABLED=false` در `.env` کاملاً خاموش می‌شود.
+
+---
+
+## تغییر ظاهر
+
+تیم فرانت برای هر پروژه فقط `static/css/theme.css` (و در صورت نیاز
+`static/css/custom.css`) را عوض می‌کند — بدون دست زدن به پایتون.
+جزئیات در **[docs/THEMING.md](docs/THEMING.md)**.
+
+---
+
+## تست و لینت
+
+```bash
+python manage.py test blog --settings=config.settings.test
+ruff check .
+```
+
+---
+
+## استقرار
+
+استقرار (Dockerfile و docker-compose برای dokploy) در این مرحله پیاده نشده و
+موضوع جلسه‌ی بعد است. چیزهایی که کد از همین حالا برایش آماده است:
+
+- خواندن همه‌ی تنظیمات از متغیرهای محیطی
+- `config.settings.production` با تنظیمات امنیتی پشت ریورس‌پروکسی
+- WhiteNoise برای فایل‌های استاتیک
+- `gunicorn config.wsgi` به‌عنوان نقطه‌ی اجرا
+- `DATABASE_URL` برای اتصال به PostgreSQL
+
+پیش از اجرای پروداکشن: `python manage.py collectstatic --noinput`

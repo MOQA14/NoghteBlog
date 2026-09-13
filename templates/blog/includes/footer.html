@@ -1,0 +1,26 @@
+{% load wagtailcore_tags blog_tags wagtailsettings_tags %}
+{% get_settings use_default_site=True as site_settings %}
+
+<footer class="site-footer">
+  <div class="container site-footer__inner">
+    <p class="site-footer__text">
+      {{ site_settings.blog.BlogSettings.footer_text|default:"" }}
+    </p>
+
+    {% with links=site_settings.blog.BlogSettings.social_links %}
+      {% if links %}
+        <ul class="social-list">
+          {% for label, url in links %}
+            <li><a href="{{ url }}" rel="noopener noreferrer" target="_blank">{{ label }}</a></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <ul class="site-footer__links">
+      <li><a href="/category/">دسته‌بندی‌ها</a></li>
+      <li><a href="/author/">نویسندگان</a></li>
+      <li><a href="{% url 'articles_feed' %}">RSS</a></li>
+    </ul>
+  </div>
+</footer>

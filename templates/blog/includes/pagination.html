@@ -1,0 +1,21 @@
+{% load blog_tags %}
+
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="pagination" aria-label="صفحه‌بندی">
+  {% if page_obj.has_previous %}
+    <a class="pagination__link" href="?{% querystring_replace page=page_obj.previous_page_number %}" rel="prev">صفحه‌ی قبل</a>
+  {% else %}
+    <span class="pagination__link pagination__link--disabled">صفحه‌ی قبل</span>
+  {% endif %}
+
+  <span class="pagination__status">
+    صفحه‌ی {{ page_obj.number|persian_digits }} از {{ page_obj.paginator.num_pages|persian_digits }}
+  </span>
+
+  {% if page_obj.has_next %}
+    <a class="pagination__link" href="?{% querystring_replace page=page_obj.next_page_number %}" rel="next">صفحه‌ی بعد</a>
+  {% else %}
+    <span class="pagination__link pagination__link--disabled">صفحه‌ی بعد</span>
+  {% endif %}
+</nav>
+{% endif %}

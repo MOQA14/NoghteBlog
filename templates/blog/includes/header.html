@@ -1,0 +1,43 @@
+{% load static wagtailcore_tags wagtailimages_tags blog_tags wagtailsettings_tags %}
+{% get_settings use_default_site=True as site_settings %}
+{% all_categories as categories %}
+
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a class="site-brand" href="/">
+      {% if site_settings.blog.BlogSettings.logo %}
+        {% image site_settings.blog.BlogSettings.logo max-160x48 class="site-brand__logo" alt="" %}
+      {% endif %}
+      <span class="site-brand__text">
+        <span class="site-brand__title">{{ site_settings.blog.BlogSettings.site_title|default:"بلاگ" }}</span>
+        {% if site_settings.blog.BlogSettings.tagline %}
+          <span class="site-brand__tagline">{{ site_settings.blog.BlogSettings.tagline }}</span>
+        {% endif %}
+      </span>
+    </a>
+
+    <button class="site-nav__toggle" type="button" aria-expanded="false" aria-controls="site-nav" data-nav-toggle>
+      <span class="sr-only">منو</span>
+      <span class="site-nav__toggle-bar" aria-hidden="true"></span>
+    </button>
+
+    <nav class="site-nav" id="site-nav" aria-label="منوی اصلی">
+      <ul class="site-nav__list">
+        <li><a href="/">همه‌ی مقالات</a></li>
+        {% for category in categories|slice:":5" %}
+          <li><a href="{{ category.url }}">{{ category.name }}</a></li>
+        {% endfor %}
+        <li><a href="/author/">نویسندگان</a></li>
+        {% if site_settings.blog.BlogSettings.main_site_url %}
+          <li><a href="{{ site_settings.blog.BlogSettings.main_site_url }}">سایت اصلی</a></li>
+        {% endif %}
+      </ul>
+
+      <form class="site-search" action="/" method="get" role="search">
+        <label class="sr-only" for="site-search-input">جست‌وجو در مقالات</label>
+        <input id="site-search-input" type="search" name="q" value="{{ search_query|default:'' }}" placeholder="جست‌وجو…">
+        <button type="submit">بگرد</button>
+      </form>
+    </nav>
+  </div>
+</header>

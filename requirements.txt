@@ -1,0 +1,10 @@
+# وابستگی‌های اصلی
+wagtail>=8.0,<9.0          # جنگو و Pillow را خودش می‌آورد
+dj-database-url>=3.0       # خواندن DATABASE_URL
+python-dotenv>=1.0         # خواندن فایل .env در توسعه
+whitenoise>=6.9            # سرو فایل‌های استاتیک بدون nginx
+jdatetime>=5.0             # تبدیل تاریخ به شمسی
+
+# پروداکشن
+gunicorn>=23.0
+psycopg[binary]>=3.2       # درایور PostgreSQL

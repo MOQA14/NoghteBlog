@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags wagtailimages_tags blog_tags %}
+
+{% block body_class %}page--article{% endblock %}
+
+{% block social_meta %}
+  {{ block.super }}
+  {% if page.social_image %}
+    {% image page.social_image fill-1200x630 format-jpeg as og_image %}
+    <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ og_image.url }}">
+  {% endif %}
+  <meta property="og:type" content="article">
+  <meta property="article:published_time" content="{{ page.publish_date|iso_date }}">
+  {% if page.author %}<meta property="article:author" content="{{ page.author.name }}">{% endif %}
+{% endblock %}
+
+{% block content %}
+<article class="article">
+
+  <header class="article__header container container--narrow">
+    {% if page.categories.all %}
+      <ul class="tag-list tag-list--lead">
+        {% for category in page.categories.all %}
+          <li><a class="tag" href="{{ category.url }}">{{ category.name }}</a></li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    <h1 class="article__title">{{ page.title }}</h1>
+    {% if page.intro %}<p class="article__intro">{{ page.intro }}</p>{% endif %}
+
+    <div class="article__meta">
+      {% if page.author %}
+        <a class="author-chip" href="{{ page.author.url }}">
+          {% if page.author.photo %}
+            {% image page.author.photo fill-64x64 format-webp class="author-chip__avatar" alt="" %}
+          {% endif %}
+          <span>
+            <span class="author-chip__name">{{ page.author.name }}</span>
+            {% if page.author.job_title %}<span class="author-chip__role">{{ page.author.job_title }}</span>{% endif %}
+          </span>
+        </a>
+      {% endif %}
+      <time datetime="{{ page.publish_date|iso_date }}">{{ page.publish_date|jalali }}</time>
+      <span class="article__reading-time">{{ page.reading_time|persian_digits }} دقیقه مطالعه</span>
+    </div>
+  </header>
+
+  {% if page.cover_image %}
+    <figure class="article__cover">
+      {% image page.cover_image width-1600 format-webp class="article__cover-image" alt=page.title %}
+    </figure>
+  {% endif %}
+
+  <div class="article__body container container--narrow rich-text">
+    {% for block in page.body %}
+      {% include_block block %}
+    {% endfor %}
+  </div>
+
+  {% if page.author and page.author.bio %}
+    <aside class="author-box container container--narrow">
+      {% if page.author.photo %}
+        {% image page.author.photo fill-128x128 format-webp class="author-box__avatar" alt="" %}
+      {% endif %}
+      <div>
+        <h2 class="author-box__name"><a href="{{ page.author.url }}">{{ page.author.name }}</a></h2>
+        {% if page.author.job_title %}<p class="author-box__role">{{ page.author.job_title }}</p>{% endif %}
+        <p class="author-box__bio">{{ page.author.bio }}</p>
+        {% with links=page.author.social_links %}
+          {% if links %}
+            <ul class="social-list">
+              {% for label, url in links %}
+                <li><a href="{{ url }}" rel="noopener noreferrer nofollow" target="_blank">{{ label }}</a></li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+      </div>
+    </aside>
+  {% endif %}
+
+  {% if related_articles %}
+    <section class="related container">
+      <h2 class="related__title">مقالات مرتبط</h2>
+      <div class="article-grid">
+        {% for article in related_articles %}
+          {% include "blog/includes/article_card.html" with article=article %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+</article>
+{% endblock %}

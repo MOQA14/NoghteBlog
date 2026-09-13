@@ -1,0 +1,35 @@
+{% load wagtailcore_tags wagtailimages_tags blog_tags %}
+
+<article class="article-card{% if article.featured %} article-card--featured{% endif %}">
+  <a class="article-card__link" href="{% pageurl article %}">
+    <div class="article-card__media">
+      {% if article.cover_image %}
+        {% image article.cover_image fill-640x360 format-webp class="article-card__image" alt=article.title loading="lazy" %}
+      {% else %}
+        <div class="article-card__image article-card__image--placeholder" aria-hidden="true"></div>
+      {% endif %}
+      {% if article.featured %}<span class="badge badge--featured">ویژه</span>{% endif %}
+    </div>
+
+    <div class="article-card__body">
+      <h2 class="article-card__title">{{ article.title }}</h2>
+      {% if article.summary %}<p class="article-card__intro">{{ article.summary }}</p>{% endif %}
+    </div>
+  </a>
+
+  <footer class="article-card__footer">
+    {% if article.author %}
+      <a class="article-card__author" href="{{ article.author.url }}">{{ article.author.name }}</a>
+    {% endif %}
+    <time datetime="{{ article.publish_date|iso_date }}">{{ article.publish_date|jalali:"short" }}</time>
+    <span class="article-card__reading-time">{{ article.reading_time|persian_digits }} دقیقه</span>
+  </footer>
+
+  {% if article.categories.all %}
+    <ul class="tag-list">
+      {% for category in article.categories.all %}
+        <li><a class="tag" href="{{ category.url }}">{{ category.name }}</a></li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</article>

@@ -1,0 +1,53 @@
+{% load static wagtailcore_tags wagtailimages_tags wagtailuserbar blog_tags wagtailsettings_tags %}
+{% get_settings use_default_site=True as site_settings %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>{% block title %}{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.title }}{% endif %}{% endblock %}{% block title_suffix %} — {{ site_settings.blog.BlogSettings.site_title|default:"بلاگ" }}{% endblock %}</title>
+
+  <meta name="description" content="{% block meta_description %}{% firstof page.search_description page.intro site_settings.blog.BlogSettings.meta_description %}{% endblock %}">
+  <link rel="canonical" href="{% block canonical_url %}{{ request.build_absolute_uri }}{% endblock %}">
+
+  {# --- اشتراک‌گذاری در شبکه‌های اجتماعی --- #}
+  {% block social_meta %}
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="fa_IR">
+    <meta property="og:site_name" content="{{ site_settings.blog.BlogSettings.site_title|default:"بلاگ" }}">
+    <meta property="og:title" content="{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.title }}{% endif %}">
+    <meta property="og:description" content="{% firstof page.search_description page.intro site_settings.blog.BlogSettings.meta_description %}">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
+    <meta name="twitter:card" content="summary_large_image">
+  {% endblock %}
+
+  {% if site_settings.blog.BlogSettings.favicon %}
+    {% image site_settings.blog.BlogSettings.favicon fill-64x64 as favicon %}
+    <link rel="icon" href="{{ favicon.url }}">
+  {% endif %}
+
+  <link rel="alternate" type="application/rss+xml" title="خوراک مقالات" href="{% url 'articles_feed' %}">
+
+  {# ترتیب مهم است: توکن‌ها ← ساختار ← بازنویسی‌های اختصاصی پروژه #}
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/blog.css' %}">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+
+<body class="{% block body_class %}{% endblock %}">
+  {% wagtailuserbar %}
+
+  {% block header %}{% include "blog/includes/header.html" %}{% endblock %}
+
+  <main id="main" class="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block footer %}{% include "blog/includes/footer.html" %}{% endblock %}
+
+  <script src="{% static 'js/blog.js' %}" defer></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,5 @@
+{% load wagtailimages_tags %}
+<figure class="article__figure">
+  {% image value.image width-1200 format-webp class="article__figure-image" loading="lazy" %}
+  {% if value.caption %}<figcaption class="article__figure-caption">{{ value.caption }}</figcaption>{% endif %}
+</figure>

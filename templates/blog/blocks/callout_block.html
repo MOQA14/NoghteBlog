@@ -1,0 +1,5 @@
+{% load wagtailcore_tags %}
+<aside class="callout callout--{{ value.style }}">
+  {% if value.title %}<p class="callout__title">{{ value.title }}</p>{% endif %}
+  <div class="callout__body">{{ value.text|richtext }}</div>
+</aside>
