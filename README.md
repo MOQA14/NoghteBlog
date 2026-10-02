@@ -11,9 +11,19 @@
 
 **پیش‌نیاز: پایتون ۳.۱۰ یا بالاتر** (Wagtail 8 و جنگو 5.2 پایین‌تر را پشتیبانی نمی‌کنند).
 
+روی دبیان/اوبونتو اول این بسته‌ها را نصب کنید، وگرنه `python3 -m venv` کار نمی‌کند:
+
+```bash
+sudo apt update && sudo apt install -y python3-venv python3-full
+```
+
 ```bash
 python3 -m venv .venv
+ls -l .venv/bin/python             # باید وجود داشته باشد؛ اگر نبود venv ساخته نشده
+
 source .venv/bin/activate          # ویندوز: .venv\Scripts\activate
+                                   # بعد از این باید (.venv) اول خط ترمینال بیاید
+pip install --upgrade pip
 pip install -r requirements.txt
 
 cp .env.example .env               # اختیاری؛ بدونش هم اجرا می‌شود
@@ -23,6 +33,9 @@ python manage.py createsuperuser
 python manage.py seed_demo         # اختیاری: محتوای نمونه برای تیم فرانت
 python manage.py runserver
 ```
+
+اگر نمی‌خواهید venv را فعال کنید، همه‌ی دستورها را با مسیر کامل بزنید:
+`.venv/bin/pip` و `.venv/bin/python` به‌جای `pip` و `python`.
 
 - بلاگ: <http://localhost:8000/>
 - پنل مدیریت: <http://localhost:8000/admin/>
@@ -34,12 +47,27 @@ python manage.py runserver
 
 | نشانه | علت و راه حل |
 | --- | --- |
+| `error: externally-managed-environment` | `pip` سیستمی را صدا زده‌اید، نه pip داخل venv. اول `source .venv/bin/activate` یا مستقیم `.venv/bin/pip install -r requirements.txt`. هرگز از `--break-system-packages` استفاده نکنید. |
+| `Cannot run program ".venv/bin/python" ... No such file or directory` | venv ساخته نشده. `sudo apt install python3-venv python3-full` و بعد `python3 -m venv .venv`. |
+| `ensurepip is not available` هنگام ساخت venv | بسته‌ی `python3-venv` نصب نیست (خطای رایج دبیان/اوبونتو). |
 | `SyntaxError` هنگام نصب یا اجرا | پایتون قدیمی است. `python3 --version` باید ۳.۱۰ به بالا باشد. |
 | `DisallowedHost` یا خطای ۴۰۰ | فایل `.env` شما `ALLOWED_HOSTS` پروداکشن دارد. در `config.settings.dev` این مقدار همیشه `["*"]` است و از `.env` خوانده نمی‌شود؛ اگر باز هم دیدید یعنی با تنظیمات پروداکشن اجرا می‌کنید. |
 | `ModuleNotFoundError: wagtail` | محیط مجازی فعال نیست. `source .venv/bin/activate` |
 | `no such table` | `python manage.py migrate` اجرا نشده. |
 | صفحه‌ی اصلی ۴۰۴ می‌دهد | دیتابیس بدون مایگریشن `0002_create_blog_index` ساخته شده. `manage.py migrate` را کامل اجرا کنید. |
 | خطای نصب `psycopg` | فقط برای PostgreSQL لازم است. برای کار لوکال با SQLite می‌توانید آن خط را از `requirements.txt` موقتاً بردارید. |
+
+### PyCharm
+
+بعد از ساخته شدن `.venv`، مفسر پروژه را دستی معرفی کنید:
+
+`Settings → Project: NoghteBlog → Python Interpreter → Add Interpreter
+→ Add Local Interpreter → Virtualenv Environment → Existing`
+
+و مسیر `.venv/bin/python` داخل پوشه‌ی پروژه را انتخاب کنید.
+
+برای اجرای سرور از داخل PyCharm، یک Run Configuration از نوع **Django Server**
+بسازید (یا Python با اسکریپت `manage.py` و آرگومان `runserver`).
 
 ---
 
