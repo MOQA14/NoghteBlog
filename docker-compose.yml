@@ -8,10 +8,9 @@
 #     می‌کند. فایل .dockerignore تضمین می‌کند فقط config/wsgi.py داخل ایمیج
 #     باشد، وگرنه ممکن است ماژول اشتباهی انتخاب شود.
 #
-#  ۲. Dockerfile خودش migrate و collectstatic را اجرا می‌کند، ولی بدون
-#     DJANGO_SETTINGS_MODULE این دو با تنظیمات dev اجرا می‌شوند در حالی که
-#     gunicorn با production بالا می‌آید. نتیجه‌اش نبودن staticfiles manifest
-#     و خطای ۵۰۰ روی تمام صفحات است. به همین دلیل این متغیر پایین صریحاً ست شده.
+#  ۲. تنظیمات پروژه یک فایل است (config/settings.py) و همه‌ی نقاط ورود همان را
+#     برمی‌دارند، پس migrate و collectstatic و gunicorn نمی‌توانند با تنظیمات
+#     متفاوت اجرا شوند. رفتار استقرار با DEBUG=false فعال می‌شود.
 #
 #  ۳. چون migrate هنگام بالا آمدن کانتینر اجرا می‌شود، وب باید منتظر سالم شدن
 #     دیتابیس بماند (depends_on + healthcheck).
@@ -48,8 +47,9 @@ services:
         condition: service_healthy
 
     environment:
-      # --- حیاتی: بدون این خط، collectstatic با dev اجرا می‌شود و سایت ۵۰۰ می‌دهد
-      DJANGO_SETTINGS_MODULE: config.settings.production
+      # تنظیمات یک فایل است (config/settings.py) و رفتار استقرار با DEBUG=false
+      # فعال می‌شود: الزامی شدن کلید و دامنه، HTTPS، کوکی امن و استاتیک hash دار.
+      DEBUG: ${DEBUG:-false}
 
       SECRET_KEY: ${SECRET_KEY:?SECRET_KEY الزامی است}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:?ALLOWED_HOSTS الزامی است، مثلا blog.example.com}

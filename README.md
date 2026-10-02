@@ -41,7 +41,8 @@ python manage.py runserver
 - پنل مدیریت: <http://localhost:8000/admin/>
 
 بدون `DATABASE_URL` از SQLite استفاده می‌شود، پس برای شروع به دیتابیس نیاز نیست.
-`manage.py` به‌صورت پیش‌فرض `config.settings.dev` را برمی‌دارد.
+تنظیمات پروژه یک فایل است: `config/settings.py`. تفاوت محیط‌ها فقط از
+متغیرهای محیطی می‌آید و کلید اصلی `DEBUG` است.
 
 ### اگر بالا نیامد
 
@@ -51,7 +52,8 @@ python manage.py runserver
 | `Cannot run program ".venv/bin/python" ... No such file or directory` | venv ساخته نشده. `sudo apt install python3-venv python3-full` و بعد `python3 -m venv .venv`. |
 | `ensurepip is not available` هنگام ساخت venv | بسته‌ی `python3-venv` نصب نیست (خطای رایج دبیان/اوبونتو). |
 | `SyntaxError` هنگام نصب یا اجرا | پایتون قدیمی است. `python3 --version` باید ۳.۱۰ به بالا باشد. |
-| `DisallowedHost` یا خطای ۴۰۰ | فایل `.env` شما `ALLOWED_HOSTS` پروداکشن دارد. در `config.settings.dev` این مقدار همیشه `["*"]` است و از `.env` خوانده نمی‌شود؛ اگر باز هم دیدید یعنی با تنظیمات پروداکشن اجرا می‌کنید. |
+| `DisallowedHost` یا خطای ۴۰۰ | `DEBUG=false` است ولی `ALLOWED_HOSTS` دامنه‌ی درست را ندارد. برای کار لوکال در `.env` مقدار `DEBUG=true` بگذارید. |
+| `ImproperlyConfigured: SECRET_KEY الزامی است` | `DEBUG=false` است و کلید داده نشده. برای کار لوکال `cp .env.example .env`. |
 | `ModuleNotFoundError: wagtail` | محیط مجازی فعال نیست. `source .venv/bin/activate` |
 | `no such table` | `python manage.py migrate` اجرا نشده. |
 | صفحه‌ی اصلی ۴۰۴ می‌دهد | دیتابیس بدون مایگریشن `0002_create_blog_index` ساخته شده. `manage.py migrate` را کامل اجرا کنید. |
@@ -92,11 +94,7 @@ python manage.py runserver
 
 ```
 config/                 تنظیمات، مسیرها، API
-  settings/
-    base.py             مشترک بین همه‌ی محیط‌ها
-    dev.py              توسعه
-    production.py       پروداکشن (dokploy)
-    test.py             تست
+  settings.py           تنظیمات یکپارچه‌ی همه‌ی محیط‌ها
 blog/
   models.py             ArticlePage, Category, Author, BlogIndexPage, BlogSettings
   blocks.py             بلوک‌های بدنه‌ی مقاله (StreamField)
@@ -171,7 +169,7 @@ GET /api/v2/pages/?type=blog.ArticlePage&fields=title,intro,cover_image,publish_
 ## تست و لینت
 
 ```bash
-python manage.py test blog --settings=config.settings.test
+python manage.py test blog
 ruff check .
 ```
 
@@ -203,11 +201,11 @@ POSTGRES_PASSWORD=...
 
 ### سه نکته‌ای که از روی همین Dockerfile تعیین شده‌اند
 
-1. **`DJANGO_SETTINGS_MODULE=config.settings.production` الزامی است.**
-   `Dockerfile` خودش `migrate` و `collectstatic` را صدا می‌زند، ولی بدون این
-   متغیر آن دو با تنظیمات `dev` اجرا می‌شوند در حالی که gunicorn با
-   `production` بالا می‌آید. نتیجه نبودن staticfiles manifest و خطای ۵۰۰ روی
-   **تمام** صفحات است. این متغیر در `docker-compose.yml` ست شده.
+1. **`DEBUG=false` رفتار استقرار را فعال می‌کند.** تنظیمات یک فایل است و همه‌ی
+   نقاط ورود همان را برمی‌دارند، پس `migrate` و `collectstatic` و gunicorn
+   نمی‌توانند با تنظیمات متفاوت اجرا شوند. با `DEBUG=false` این‌ها روشن
+   می‌شوند: الزامی شدن `SECRET_KEY` و `ALLOWED_HOSTS`، ریدایرکت HTTPS،
+   کوکی امن، HSTS، و فایل‌های استاتیک hash دار.
 
 2. **`.dockerignore` حیاتی است.** `Dockerfile` ماژول پروژه را با
    `find . -name wsgi.py | head -n 1` پیدا می‌کند. اگر `.venv` داخل ایمیج کپی
