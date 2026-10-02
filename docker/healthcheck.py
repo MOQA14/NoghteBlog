@@ -2,7 +2,7 @@
 """
 بررسی سلامت کانتینر وب.
 
-در docker-compose.yaml به‌صورت «python /app/docker/healthcheck.py» صدا زده می‌شود.
+در docker-compose.yml به‌صورت «python /app/docker/healthcheck.py» صدا زده می‌شود.
 
 چرا به این سادگی نیست که یک درخواست ساده بزنیم:
   • تنظیمات پروداکشن SECURE_SSL_REDIRECT دارد، پس درخواست http پاسخ ۳۰۱ می‌گیرد.
