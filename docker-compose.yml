@@ -28,9 +28,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        - CMD-SHELL
-        - pg_isready -U "$${POSTGRES_USER:-noghteblog}" -d "$${POSTGRES_DB:-noghteblog}"
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-noghteblog} -d ${POSTGRES_DB:-noghteblog}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -87,19 +85,9 @@ services:
       - "8000"
 
     healthcheck:
-      # پروداکشن SECURE_SSL_REDIRECT دارد، پس درخواست ساده ۳۰۱ می‌گیرد و
-      # ALLOWED_HOSTS هم شامل 127.0.0.1 نیست و ۴۰۰ می‌دهد. این دو هدر هر دو
-      # مشکل را حل می‌کنند و پاسخ واقعی ۲۰۰ بررسی می‌شود.
-      test:
-        - CMD-SHELL
-        - |
-          python -c "
-          import os, sys, urllib.request
-          host = os.environ.get('ALLOWED_HOSTS', 'localhost').split(',')[0].strip()
-          req = urllib.request.Request('http://127.0.0.1:8000/',
-                                       headers={'Host': host, 'X-Forwarded-Proto': 'https'})
-          sys.exit(0 if urllib.request.urlopen(req, timeout=5).status == 200 else 1)
-          "
+      # منطقش در docker/healthcheck.py توضیح داده شده: به‌خاطر SECURE_SSL_REDIRECT
+      # و ALLOWED_HOSTS، درخواست باید هدرهای Host و X-Forwarded-Proto داشته باشد.
+      test: ["CMD", "python", "/app/docker/healthcheck.py"]
       interval: 30s
       timeout: 10s
       retries: 3
