@@ -56,6 +56,7 @@ python manage.py runserver
 | `DisallowedHost` یا خطای ۴۰۰ | دامنه‌ای که با آن وصل می‌شوید در `ALLOWED_HOSTS` نیست. در حالت `DEBUG` روشن، جنگو فقط `localhost` و `127.0.0.1` را خودکار می‌پذیرد. |
 | همه‌ی صفحات ۴۰۰ روی سرور | `DEBUG=false` است و `ALLOWED_HOSTS` ست نشده. `manage.py check --deploy` این را با کد `W020` می‌گوید. |
 | `ModuleNotFoundError: wagtail` | محیط مجازی فعال نیست. `source .venv/bin/activate` |
+| `No module named 'config.settings.dev'` | جایی در محیط اجرا هنوز متغیر `DJANGO_SETTINGS_MODULE` را روی ماژول قدیمی ست کرده. تنظیمات این پروژه از چهار فایل به یک فایل تبدیل شده و مقدار درست `config.settings` است. چون `manage.py` از `setdefault` استفاده می‌کند، مقدار محیط بر آن اولویت دارد. در PyCharm دو جا را چک کنید: `Settings → Languages & Frameworks → Django → Settings` و `Run → Edit Configurations → Environment variables`. |
 | `no such table` | `python manage.py migrate` اجرا نشده. |
 | صفحه‌ی اصلی ۴۰۴ می‌دهد | دیتابیس بدون مایگریشن `0002_create_blog_index` ساخته شده. `manage.py migrate` را کامل اجرا کنید. |
 | خطای نصب `psycopg` | فقط برای PostgreSQL لازم است. برای کار لوکال با SQLite می‌توانید آن خط را از `requirements.txt` موقتاً بردارید. |
@@ -69,8 +70,20 @@ python manage.py runserver
 
 و مسیر `.venv/bin/python` داخل پوشه‌ی پروژه را انتخاب کنید.
 
-برای اجرای سرور از داخل PyCharm، یک Run Configuration از نوع **Django Server**
-بسازید (یا Python با اسکریپت `manage.py` و آرگومان `runserver`).
+در بخش **Languages & Frameworks → Django** این سه مقدار را بدهید:
+
+| فیلد | مقدار |
+| --- | --- |
+| Django project root | پوشه‌ی پروژه |
+| Settings | `config/settings.py` |
+| Manage script | `manage.py` |
+
+PyCharm از روی فیلد `Settings` متغیر `DJANGO_SETTINGS_MODULE` را به اجراها
+تزریق می‌کند، و چون `manage.py` از `setdefault` استفاده می‌کند، آن مقدار
+برنده است. پس اگر این فیلد اشتباه باشد، پروژه بالا نمی‌آید حتی وقتی کد درست است.
+
+برای اجرای سرور یک Run Configuration از نوع **Django Server** بسازید
+(یا Python با اسکریپت `manage.py` و آرگومان `runserver`).
 
 ---
 
