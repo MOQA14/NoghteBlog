@@ -1,19 +1,27 @@
 """
-تنظیمات پایه‌ی NoghteBlog (Wagtail).
+تنظیمات NoghteBlog.
 
-این فایل مشترک بین همه‌ی محیط‌هاست. مقادیر محیطی از متغیرهای محیط (.env)
-خوانده می‌شوند تا همین یک ایمیج در پروژه‌های مختلف قابل استفاده باشد.
+یک فایل برای همه‌ی محیط‌ها. تفاوت dev و prd فقط از راه متغیرهای محیطی
+(فایل .env روی هر سرور) تعیین می‌شود، نه از راه ماژول‌های جدا.
+
+کلید اصلی، متغیر DEBUG است:
+  DEBUG=true   → حالت توسعه: کلید و دامنه‌ی پیش‌فرض، بدون اجبار HTTPS
+  DEBUG=false  → حالت استقرار: SECRET_KEY و ALLOWED_HOSTS الزامی، HTTPS و
+                 کوکی امن و HSTS روشن، فایل‌های استاتیک با manifest
+هر کدام از این‌ها را می‌شود جداگانه با متغیر محیطی بازنویسی کرد.
 """
 
 import os
+import sys
 from pathlib import Path
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-# در محیط توسعه فایل .env خوانده می‌شود؛ در پروداکشن متغیرها را dokploy تزریق می‌کند.
+# در توسعه فایل .env خوانده می‌شود؛ در پروداکشن متغیرها را dokploy تزریق می‌کند.
 load_dotenv(BASE_DIR / ".env")
 
 
@@ -35,6 +43,47 @@ def env_list(key, default=()):
         return list(default)
     return [item.strip() for item in value.split(",") if item.strip()]
 
+
+# ---------------------------------------------------------------------------
+# حالت اجرا
+# ---------------------------------------------------------------------------
+DEBUG = env_bool("DEBUG", False)
+
+# هنگام اجرای تست‌ها نباید نبودِ SECRET_KEY یا ALLOWED_HOSTS جلوی کار را بگیرد
+# و فایل‌های استاتیک هم نباید manifest لازم داشته باشند.
+TESTING = "test" in sys.argv
+
+# تنها حالتی که سخت‌گیری کامل لازم است: اجرای واقعی با DEBUG=false
+STRICT = not DEBUG and not TESTING
+
+# ---------------------------------------------------------------------------
+# امنیت پایه
+# ---------------------------------------------------------------------------
+SECRET_KEY = env("SECRET_KEY")
+if not SECRET_KEY:
+    if STRICT:
+        raise ImproperlyConfigured(
+            "متغیر محیطی SECRET_KEY الزامی است. "
+            "ساخت کلید: python -c \"from django.core.management.utils import "
+            'get_random_secret_key as k; print(k())"'
+        )
+    SECRET_KEY = "django-insecure-development-key-do-not-use-in-production"
+
+ALLOWED_HOSTS = env_list("ALLOWED_HOSTS")
+if not ALLOWED_HOSTS:
+    if STRICT:
+        raise ImproperlyConfigured(
+            "متغیر محیطی ALLOWED_HOSTS الزامی است، مثلا blog.example.com . "
+            "برای اجرای لوکال: cp .env.example .env"
+        )
+    ALLOWED_HOSTS = ["*"]
+
+# مثال: CSRF_TRUSTED_ORIGINS=https://blog.example.com
+# اگر داده نشود، از روی ALLOWED_HOSTS ساخته می‌شود.
+CSRF_TRUSTED_ORIGINS = env_list(
+    "CSRF_TRUSTED_ORIGINS",
+    [f"https://{host}" for host in ALLOWED_HOSTS if "*" not in host],
+)
 
 # ---------------------------------------------------------------------------
 # اپلیکیشن‌ها
@@ -151,13 +200,54 @@ STATIC_URL = env("STATIC_URL", "/static/")
 MEDIA_ROOT = Path(env("MEDIA_ROOT", BASE_DIR / "media"))
 MEDIA_URL = env("MEDIA_URL", "/media/")
 
+# نام فایل‌های استاتیک فقط در استقرار hash می‌گیرد. در توسعه و تست این کار
+# لازم نیست و نبودِ فایل manifest باعث خطا می‌شود.
+STATICFILES_BACKEND = (
+    "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    if STRICT
+    else "django.contrib.staticfiles.storage.StaticFilesStorage"
+)
+
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    "staticfiles": {"BACKEND": STATICFILES_BACKEND},
 }
 
 # صفحه‌ساز Wagtail می‌تواند از سقف پیش‌فرض ۱۰۰۰ فیلد فرم عبور کند.
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10_000
+
+# ---------------------------------------------------------------------------
+# امنیت هنگام استقرار
+# ---------------------------------------------------------------------------
+# پشت ریورس‌پروکسی (traefik در dokploy) اجرا می‌شود.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = env_bool("USE_X_FORWARDED_HOST", STRICT)
+
+SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", STRICT)
+SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", STRICT)
+CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", STRICT)
+SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", 60 * 60 * 24 * 30 if STRICT else 0))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", STRICT)
+SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", False)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
+
+# ---------------------------------------------------------------------------
+# ایمیل
+# ---------------------------------------------------------------------------
+EMAIL_BACKEND = env(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.smtp.EmailBackend"
+    if STRICT
+    else "django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_HOST = env("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(env("EMAIL_PORT", 25))
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", False)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "noreply@localhost")
 
 # ---------------------------------------------------------------------------
 # Wagtail
@@ -232,3 +322,24 @@ LOGGING = {
     },
     "root": {"handlers": ["console"], "level": env("LOG_LEVEL", "INFO")},
 }
+
+# ---------------------------------------------------------------------------
+# تنظیمات مخصوص اجرای تست‌ها
+# ---------------------------------------------------------------------------
+if TESTING:
+    # دیتابیس در حافظه، بدون نوشتن فایل روی دیسک
+    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
+        "staticfiles": {"BACKEND": STATICFILES_BACKEND},
+    }
+    # WhiteNoise در تست لازم نیست و بدون collectstatic هشدار می‌دهد.
+    MIDDLEWARE = [m for m in MIDDLEWARE if "whitenoise" not in m]
+    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+    EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {"null": {"class": "logging.NullHandler"}},
+        "root": {"handlers": ["null"], "level": "CRITICAL"},
+    }

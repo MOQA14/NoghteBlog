@@ -29,7 +29,6 @@ staticfiles/
 
 # محیط و اسرار
 .env
-config/settings/local.py
 
 # ویرایشگر
 .vscode/
