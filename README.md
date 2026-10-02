@@ -41,8 +41,9 @@ python manage.py runserver
 - پنل مدیریت: <http://localhost:8000/admin/>
 
 بدون `DATABASE_URL` از SQLite استفاده می‌شود، پس برای شروع به دیتابیس نیاز نیست.
-تنظیمات پروژه یک فایل است: `config/settings.py`. تفاوت محیط‌ها فقط از
-متغیرهای محیطی می‌آید و کلید اصلی `DEBUG` است.
+تنظیمات پروژه یک فایل است: `config/settings.py` با همان ساختار پیش‌فرض جنگو.
+مقادیری که بین سرورها فرق می‌کنند از متغیرهای محیطی خوانده می‌شوند و کلید
+اصلی `DEBUG` است. روی سرورهای dev و prd مقدار `DEBUG=false` بگذارید.
 
 ### اگر بالا نیامد
 
@@ -52,8 +53,8 @@ python manage.py runserver
 | `Cannot run program ".venv/bin/python" ... No such file or directory` | venv ساخته نشده. `sudo apt install python3-venv python3-full` و بعد `python3 -m venv .venv`. |
 | `ensurepip is not available` هنگام ساخت venv | بسته‌ی `python3-venv` نصب نیست (خطای رایج دبیان/اوبونتو). |
 | `SyntaxError` هنگام نصب یا اجرا | پایتون قدیمی است. `python3 --version` باید ۳.۱۰ به بالا باشد. |
-| `DisallowedHost` یا خطای ۴۰۰ | `DEBUG=false` است ولی `ALLOWED_HOSTS` دامنه‌ی درست را ندارد. برای کار لوکال در `.env` مقدار `DEBUG=true` بگذارید. |
-| `ImproperlyConfigured: SECRET_KEY الزامی است` | `DEBUG=false` است و کلید داده نشده. برای کار لوکال `cp .env.example .env`. |
+| `DisallowedHost` یا خطای ۴۰۰ | دامنه‌ای که با آن وصل می‌شوید در `ALLOWED_HOSTS` نیست. در حالت `DEBUG` روشن، جنگو فقط `localhost` و `127.0.0.1` را خودکار می‌پذیرد. |
+| همه‌ی صفحات ۴۰۰ روی سرور | `DEBUG=false` است و `ALLOWED_HOSTS` ست نشده. `manage.py check --deploy` این را با کد `W020` می‌گوید. |
 | `ModuleNotFoundError: wagtail` | محیط مجازی فعال نیست. `source .venv/bin/activate` |
 | `no such table` | `python manage.py migrate` اجرا نشده. |
 | صفحه‌ی اصلی ۴۰۴ می‌دهد | دیتابیس بدون مایگریشن `0002_create_blog_index` ساخته شده. `manage.py migrate` را کامل اجرا کنید. |
@@ -94,7 +95,7 @@ python manage.py runserver
 
 ```
 config/                 تنظیمات، مسیرها، API
-  settings.py           تنظیمات یکپارچه‌ی همه‌ی محیط‌ها
+  settings.py           تنظیمات (ساختار پیش‌فرض جنگو)
 blog/
   models.py             ArticlePage, Category, Author, BlogIndexPage, BlogSettings
   blocks.py             بلوک‌های بدنه‌ی مقاله (StreamField)
@@ -203,9 +204,13 @@ POSTGRES_PASSWORD=...
 
 1. **`DEBUG=false` رفتار استقرار را فعال می‌کند.** تنظیمات یک فایل است و همه‌ی
    نقاط ورود همان را برمی‌دارند، پس `migrate` و `collectstatic` و gunicorn
-   نمی‌توانند با تنظیمات متفاوت اجرا شوند. با `DEBUG=false` این‌ها روشن
-   می‌شوند: الزامی شدن `SECRET_KEY` و `ALLOWED_HOSTS`، ریدایرکت HTTPS،
-   کوکی امن، HSTS، و فایل‌های استاتیک hash دار.
+   نمی‌توانند با تنظیمات متفاوت اجرا شوند. بلوک `if not DEBUG:` انتهای
+   `config/settings.py` این‌ها را روشن می‌کند: فایل‌های استاتیک hash دار،
+   ریدایرکت HTTPS، کوکی امن، HSTS و هدرهای امنیتی.
+
+   پیش از هر استقرار یک بار `python manage.py check --deploy` بگیرید؛ اگر
+   `SECRET_KEY` یا `ALLOWED_HOSTS` را جا انداخته باشید، خود جنگو با کدهای
+   `W009` و `W020` می‌گوید.
 
 2. **`.dockerignore` حیاتی است.** `Dockerfile` ماژول پروژه را با
    `find . -name wsgi.py | head -n 1` پیدا می‌کند. اگر `.venv` داخل ایمیج کپی
