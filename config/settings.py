@@ -1,102 +1,53 @@
 """
-تنظیمات NoghteBlog.
+Django settings for config project.
 
-یک فایل برای همه‌ی محیط‌ها. تفاوت dev و prd فقط از راه متغیرهای محیطی
-(فایل .env روی هر سرور) تعیین می‌شود، نه از راه ماژول‌های جدا.
+مقادیری که بین سرورها فرق می‌کنند از متغیرهای محیطی خوانده می‌شوند
+(فایل .env روی هر سرور). کلید اصلی DEBUG است: روی سرورهای dev و prd
+مقدار DEBUG=false بگذارید تا تنظیمات امنیتی انتهای فایل فعال شوند.
 
-کلید اصلی، متغیر DEBUG است:
-  DEBUG=true   → حالت توسعه: کلید و دامنه‌ی پیش‌فرض، بدون اجبار HTTPS
-  DEBUG=false  → حالت استقرار: SECRET_KEY و ALLOWED_HOSTS الزامی، HTTPS و
-                 کوکی امن و HSTS روشن، فایل‌های استاتیک با manifest
-هر کدام از این‌ها را می‌شود جداگانه با متغیر محیطی بازنویسی کرد.
+https://docs.djangoproject.com/en/5.2/topics/settings/
 """
 
 import os
-import sys
 from pathlib import Path
 
 import dj_database_url
-from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# در توسعه فایل .env خوانده می‌شود؛ در پروداکشن متغیرها را dokploy تزریق می‌کند.
 load_dotenv(BASE_DIR / ".env")
 
 
-def env(key, default=None):
-    value = os.environ.get(key)
-    return default if value is None or value == "" else value
+# Quick-start development settings - unsuitable for production
+# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-change-me-in-production")
 
-def env_bool(key, default=False):
-    value = env(key)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "yes", "on")
 
-
-def env_list(key, default=()):
-    value = env(key)
-    if value is None:
-        return list(default)
-    return [item.strip() for item in value.split(",") if item.strip()]
-
-
-# ---------------------------------------------------------------------------
-# حالت اجرا
-# ---------------------------------------------------------------------------
-DEBUG = env_bool("DEBUG", False)
-
-# هنگام اجرای تست‌ها نباید نبودِ SECRET_KEY یا ALLOWED_HOSTS جلوی کار را بگیرد
-# و فایل‌های استاتیک هم نباید manifest لازم داشته باشند.
-TESTING = "test" in sys.argv
-
-# تنها حالتی که سخت‌گیری کامل لازم است: اجرای واقعی با DEBUG=false
-STRICT = not DEBUG and not TESTING
-
-# ---------------------------------------------------------------------------
-# امنیت پایه
-# ---------------------------------------------------------------------------
-SECRET_KEY = env("SECRET_KEY")
-if not SECRET_KEY:
-    if STRICT:
-        raise ImproperlyConfigured(
-            "متغیر محیطی SECRET_KEY الزامی است. "
-            "ساخت کلید: python -c \"from django.core.management.utils import "
-            'get_random_secret_key as k; print(k())"'
-        )
-    SECRET_KEY = "django-insecure-development-key-do-not-use-in-production"
-
-ALLOWED_HOSTS = env_list("ALLOWED_HOSTS")
-if not ALLOWED_HOSTS:
-    if STRICT:
-        raise ImproperlyConfigured(
-            "متغیر محیطی ALLOWED_HOSTS الزامی است، مثلا blog.example.com . "
-            "برای اجرای لوکال: cp .env.example .env"
-        )
-    ALLOWED_HOSTS = ["*"]
+# مثال: ALLOWED_HOSTS=blog.example.com,www.blog.example.com
+# اگر خالی بماند و DEBUG روشن باشد، جنگو خودش localhost و 127.0.0.1 را
+# می‌پذیرد. با DEBUG=false خالی ماندنش یعنی همه‌ی درخواست‌ها رد می‌شوند و
+# دستور check --deploy هم هشدار W020 می‌دهد.
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()]
 
 # مثال: CSRF_TRUSTED_ORIGINS=https://blog.example.com
-# اگر داده نشود، از روی ALLOWED_HOSTS ساخته می‌شود.
-CSRF_TRUSTED_ORIGINS = env_list(
-    "CSRF_TRUSTED_ORIGINS",
-    [f"https://{host}" for host in ALLOWED_HOSTS if "*" not in host],
-)
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()
+] or [f"https://{h}" for h in ALLOWED_HOSTS if "*" not in h]
 
-# ---------------------------------------------------------------------------
-# اپلیکیشن‌ها
-# ---------------------------------------------------------------------------
+
+# Application definition
+
 # فقط ماژول‌هایی از Wagtail نصب شده‌اند که برای «مقالات، دسته‌بندی‌ها و
-# نویسندگان» لازم‌اند. عمداً نصب نشده‌اند:
-#   wagtail.contrib.forms          (فرم‌ساز)
-#   wagtail.contrib.redirects      (ریدایرکت‌ها)
-#   wagtail.contrib.search_promotions
-#
-# نکته: wagtail.documents نصب است چون پنل مدیریت Wagtail به آن وابستگی
-# سخت دارد، اما در blog/wagtail_hooks.py از منو حذف شده و در ویرایشگر
-# متن غنی هم امکان درج سند فعال نیست.
+# نویسندگان» لازم‌اند. عمداً نصب نشده‌اند: wagtail.contrib.forms،
+# wagtail.contrib.redirects و wagtail.contrib.search_promotions.
+# نکته: wagtail.documents نصب است چون پنل مدیریت به آن وابستگی سخت دارد،
+# اما در blog/wagtail_hooks.py از منو حذف شده است.
 INSTALLED_APPS = [
     "blog",
     "wagtail.api.v2",
@@ -136,7 +87,6 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "config.urls"
-WSGI_APPLICATION = "config.wsgi.application"
 
 TEMPLATES = [
     {
@@ -157,18 +107,24 @@ TEMPLATES = [
     },
 ]
 
-# ---------------------------------------------------------------------------
-# دیتابیس
-# ---------------------------------------------------------------------------
+WSGI_APPLICATION = "config.wsgi.application"
+
+
+# Database
+# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# بدون DATABASE_URL از SQLite استفاده می‌شود.
+
 DATABASES = {
     "default": dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=int(env("DB_CONN_MAX_AGE", "600")),
+        conn_max_age=600,
         conn_health_checks=True,
     )
 }
 
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Password validation
+# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -177,108 +133,105 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# ---------------------------------------------------------------------------
-# زبان و زمان
-# ---------------------------------------------------------------------------
+
+# Internationalization
+# https://docs.djangoproject.com/en/5.2/topics/i18n/
 # با fa بودن زبان، پنل مدیریت Wagtail هم فارسی و راست‌به‌چپ می‌شود.
-LANGUAGE_CODE = env("LANGUAGE_CODE", "fa")
-TIME_ZONE = env("TIME_ZONE", "Asia/Tehran")
+
+LANGUAGE_CODE = os.environ.get("LANGUAGE_CODE", "fa")
+
+TIME_ZONE = os.environ.get("TIME_ZONE", "Asia/Tehran")
+
 USE_I18N = True
+
 USE_TZ = True
 
-# ---------------------------------------------------------------------------
-# فایل‌های استاتیک و رسانه
-# ---------------------------------------------------------------------------
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/5.2/howto/static-files/
+
 STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.FileSystemFinder",
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 ]
+
 STATICFILES_DIRS = [BASE_DIR / "static"]
+
 STATIC_ROOT = BASE_DIR / "staticfiles"
-STATIC_URL = env("STATIC_URL", "/static/")
+STATIC_URL = "/static/"
 
-MEDIA_ROOT = Path(env("MEDIA_ROOT", BASE_DIR / "media"))
-MEDIA_URL = env("MEDIA_URL", "/media/")
-
-# نام فایل‌های استاتیک فقط در استقرار hash می‌گیرد. در توسعه و تست این کار
-# لازم نیست و نبودِ فایل manifest باعث خطا می‌شود.
-STATICFILES_BACKEND = (
-    "whitenoise.storage.CompressedManifestStaticFilesStorage"
-    if STRICT
-    else "django.contrib.staticfiles.storage.StaticFilesStorage"
-)
+MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT") or BASE_DIR / "media")
+MEDIA_URL = "/media/"
 
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": STATICFILES_BACKEND},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
-# صفحه‌ساز Wagtail می‌تواند از سقف پیش‌فرض ۱۰۰۰ فیلد فرم عبور کند.
+# Default primary key field type
+# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Django sets a maximum of 1000 fields per form by default, but particularly complex page models
+# can exceed this limit within Wagtail's page editor.
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10_000
 
-# ---------------------------------------------------------------------------
-# امنیت هنگام استقرار
-# ---------------------------------------------------------------------------
-# پشت ریورس‌پروکسی (traefik در dokploy) اجرا می‌شود.
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-USE_X_FORWARDED_HOST = env_bool("USE_X_FORWARDED_HOST", STRICT)
 
-SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", STRICT)
-SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", STRICT)
-CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", STRICT)
-SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", 60 * 60 * 24 * 30 if STRICT else 0))
-SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", STRICT)
-SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", False)
-SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_REFERRER_POLICY = "same-origin"
-X_FRAME_OPTIONS = "DENY"
+# Email
 
-# ---------------------------------------------------------------------------
-# ایمیل
-# ---------------------------------------------------------------------------
-EMAIL_BACKEND = env(
-    "EMAIL_BACKEND",
-    "django.core.mail.backends.smtp.EmailBackend"
-    if STRICT
-    else "django.core.mail.backends.console.EmailBackend",
-)
-EMAIL_HOST = env("EMAIL_HOST", "localhost")
-EMAIL_PORT = int(env("EMAIL_PORT", 25))
-EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
-EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
-EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", False)
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "noreply@localhost")
+EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", 25))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "False").lower() in ("true", "1", "yes", "on")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@localhost")
 
-# ---------------------------------------------------------------------------
-# Wagtail
-# ---------------------------------------------------------------------------
-WAGTAIL_SITE_NAME = env("WAGTAIL_SITE_NAME", "بلاگ نقطه")
-WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL", "http://localhost:8000")
+
+# Logging
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"simple": {"format": "[{levelname}] {name}: {message}", "style": "{"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "simple"}},
+    "root": {"handlers": ["console"], "level": os.environ.get("LOG_LEVEL", "WARNING")},
+}
+
+
+# Wagtail settings
+
+WAGTAIL_SITE_NAME = os.environ.get("WAGTAIL_SITE_NAME", "بلاگ نقطه")
+
+# Base URL to use when referring to full URLs within the Wagtail admin backend -
+# e.g. in notification emails. Don't include '/admin' or a trailing slash
+WAGTAILADMIN_BASE_URL = os.environ.get("WAGTAILADMIN_BASE_URL", "http://localhost:8000")
+
 # مسیر پنل مدیریت؛ برای امنیت بیشتر می‌توانید عوضش کنید (مثلاً panel).
-WAGTAIL_ADMIN_URL = env("WAGTAIL_ADMIN_URL", "admin")
+WAGTAIL_ADMIN_URL = os.environ.get("WAGTAIL_ADMIN_URL", "admin")
 
 # گردش‌کار تأیید محتوا لازم نیست؛ همان پیش‌نویس/انتشار ساده کافی است.
 WAGTAIL_WORKFLOW_ENABLED = False
-# اسلاگ‌های فارسی مجاز باشند (مثل /سلام-دنیا/). برای اسلاگ لاتین: False
-WAGTAIL_ALLOW_UNICODE_SLUGS = env_bool("WAGTAIL_ALLOW_UNICODE_SLUGS", True)
-WAGTAIL_PASSWORD_RESET_ENABLED = env_bool("WAGTAIL_PASSWORD_RESET_ENABLED", False)
-WAGTAILADMIN_COMMENTS_ENABLED = True
 
+# اسلاگ‌های فارسی مجاز باشند (مثل /سلام-دنیا/).
+WAGTAIL_ALLOW_UNICODE_SLUGS = True
+
+WAGTAIL_PASSWORD_RESET_ENABLED = False
+
+# Search
+# https://docs.wagtail.org/en/stable/topics/search/backends.html
 WAGTAILSEARCH_BACKENDS = {
     "default": {"BACKEND": "wagtail.search.backends.database"},
 }
 
 WAGTAILIMAGES_IMAGE_MODEL = "blog.CustomImage"
 WAGTAILIMAGES_EXTENSIONS = ["gif", "jpg", "jpeg", "png", "webp", "avif", "svg"]
-WAGTAILIMAGES_MAX_UPLOAD_SIZE = int(env("WAGTAILIMAGES_MAX_UPLOAD_SIZE", 10 * 1024 * 1024))
+WAGTAILIMAGES_MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
 
-# سرویس‌های امبد مجاز در بدنه‌ی مقاله (ویدیو و ...).
 WAGTAILEMBEDS_RESPONSIVE_HTML = True
 
-# ---------------------------------------------------------------------------
-# ویرایشگر متن غنی
-# ---------------------------------------------------------------------------
-# امکاناتی مثل درج سند (document-link) عمداً حذف شده‌اند.
+# امکانات ویرایشگر متن غنی. درج سند (document-link) عمداً نیست.
 RICH_TEXT_FEATURES = [
     "h2",
     "h3",
@@ -303,43 +256,34 @@ WAGTAILADMIN_RICH_TEXT_EDITORS = {
     },
 }
 
-# ---------------------------------------------------------------------------
-# API فقط-خواندنی (اختیاری)
-# ---------------------------------------------------------------------------
-# اگر پروژه‌ای بخواهد مقالات را داخل سایت خودش نمایش دهد (مثلاً «۳ مقاله‌ی
-# آخر» در صفحه‌ی اصلی)، این API آماده است. با BLOG_API_ENABLED=false خاموش می‌شود.
-BLOG_API_ENABLED = env_bool("BLOG_API_ENABLED", True)
+# API فقط-خواندنی برای وقتی که پروژه‌ای بخواهد مقالات را داخل سایت خودش
+# نمایش دهد. با BLOG_API_ENABLED=false خاموش می‌شود.
+BLOG_API_ENABLED = os.environ.get("BLOG_API_ENABLED", "True").lower() in ("true", "1", "yes", "on")
 
-# ---------------------------------------------------------------------------
-# لاگ
-# ---------------------------------------------------------------------------
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {"simple": {"format": "[{levelname}] {name}: {message}", "style": "{"}},
-    "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "simple"},
-    },
-    "root": {"handlers": ["console"], "level": env("LOG_LEVEL", "INFO")},
-}
 
-# ---------------------------------------------------------------------------
-# تنظیمات مخصوص اجرای تست‌ها
-# ---------------------------------------------------------------------------
-if TESTING:
-    # دیتابیس در حافظه، بدون نوشتن فایل روی دیسک
-    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
-    STORAGES = {
-        "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
-        "staticfiles": {"BACKEND": STATICFILES_BACKEND},
-    }
-    # WhiteNoise در تست لازم نیست و بدون collectstatic هشدار می‌دهد.
-    MIDDLEWARE = [m for m in MIDDLEWARE if "whitenoise" not in m]
-    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
-    EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
-    LOGGING = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "handlers": {"null": {"class": "logging.NullHandler"}},
-        "root": {"handlers": ["null"], "level": "CRITICAL"},
-    }
+# Deployment settings
+# https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+# روی سرورهای dev و prd مقدار DEBUG=false بگذارید تا این‌ها فعال شوند.
+
+if not DEBUG:
+    # نام فایل‌های استاتیک hash می‌گیرد تا کش مرورگر خودکار باطل شود.
+    STORAGES["staticfiles"]["BACKEND"] = (
+        "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    )
+
+    # پشت ریورس‌پروکسی (traefik در dokploy) اجرا می‌شود.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    USE_X_FORWARDED_HOST = True
+
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "same-origin"
+    X_FRAME_OPTIONS = "DENY"
+else:
+    EMAIL_BACKEND = os.environ.get(
+        "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
+    )
