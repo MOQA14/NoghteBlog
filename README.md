@@ -179,13 +179,58 @@ ruff check .
 
 ## استقرار
 
-استقرار (Dockerfile و docker-compose برای dokploy) در این مرحله پیاده نشده و
-موضوع جلسه‌ی بعد است. چیزهایی که کد از همین حالا برایش آماده است:
+استقرار با **dokploy** و `Dockerfile` استاندارد شرکت انجام می‌شود.
+`Dockerfile` دست‌نخورده است؛ `docker-compose.yaml` با آن هماهنگ شده.
 
-- خواندن همه‌ی تنظیمات از متغیرهای محیطی
-- `config.settings.production` با تنظیمات امنیتی پشت ریورس‌پروکسی
-- WhiteNoise برای فایل‌های استاتیک
-- `gunicorn config.wsgi` به‌عنوان نقطه‌ی اجرا
-- `DATABASE_URL` برای اتصال به PostgreSQL
+```bash
+# متغیرهای الزامی (در dokploy تنظیم می‌شوند، نه در ریپو)
+SECRET_KEY=...            # python -c "from django.core.management.utils import get_random_secret_key as k; print(k())"
+ALLOWED_HOSTS=blog.example.com
+POSTGRES_PASSWORD=...
+```
 
-پیش از اجرای پروداکشن: `python manage.py collectstatic --noinput`
+اگر هر کدام نباشند، `docker compose` پیش از بالا آمدن با پیام صریح متوقف می‌شود.
+
+### volume ها
+
+| volume | مسیر | چرا لازم است |
+| --- | --- | --- |
+| `media_data` | `/app/media` | تصاویری که ادمین آپلود می‌کند. بدون آن، هر دیپلوی مجدد همه‌ی تصاویر را پاک می‌کند. |
+| `postgres_data` | `/var/lib/postgresql/data` | داده‌های دیتابیس. |
+
+`staticfiles` عمداً volume ندارد، چون `Dockerfile` در هر بار بالا آمدن
+`collectstatic` را اجرا می‌کند و محتوایش بازساخته می‌شود.
+
+### سه نکته‌ای که از روی همین Dockerfile تعیین شده‌اند
+
+1. **`DJANGO_SETTINGS_MODULE=config.settings.production` الزامی است.**
+   `Dockerfile` خودش `migrate` و `collectstatic` را صدا می‌زند، ولی بدون این
+   متغیر آن دو با تنظیمات `dev` اجرا می‌شوند در حالی که gunicorn با
+   `production` بالا می‌آید. نتیجه نبودن staticfiles manifest و خطای ۵۰۰ روی
+   **تمام** صفحات است. این متغیر در `docker-compose.yaml` ست شده.
+
+2. **`.dockerignore` حیاتی است.** `Dockerfile` ماژول پروژه را با
+   `find . -name wsgi.py | head -n 1` پیدا می‌کند. اگر `.venv` داخل ایمیج کپی
+   شود، هفت `wsgi.py` دیگر هم پیدا می‌شود و ممکن است به‌جای `config` یکی از
+   آن‌ها انتخاب شود.
+
+3. **`depends_on` با `condition: service_healthy`.** چون `migrate` هنگام بالا
+   آمدن کانتینر اجرا می‌شود، وب باید منتظر آماده شدن دیتابیس بماند.
+
+### شبکه و دامنه
+
+بسته به نسخه‌ی dokploy، دامنه یا از رابط کاربری تنظیم می‌شود یا با وصل شدن به
+شبکه‌ی traefik. بخش مربوطه در انتهای `docker-compose.yaml` کامنت شده؛ با مدیر
+آی‌تی چک کنید کدام روش در شرکت شما استفاده می‌شود.
+
+سرویس وب فقط `expose` دارد و پورتی روی هاست منتشر نمی‌کند، چون ترافیک از
+traefik می‌آید. اگر بدون ریورس‌پروکسی تست می‌کنید، موقتاً `ports` اضافه کنید.
+
+### بعد از اولین دیپلوی
+
+```bash
+docker compose exec web python manage.py createsuperuser
+```
+
+سپس در پنل، زیر **تنظیمات → سایت‌ها**، دامنه را از `localhost` به دامنه‌ی
+واقعی تغییر دهید.

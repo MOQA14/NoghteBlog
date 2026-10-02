@@ -1,0 +1,128 @@
+# ---------------------------------------------------------------------------
+# استقرار بلاگ با dokploy
+#
+# این فایل با Dockerfile استاندارد شرکت هماهنگ شده و آن فایل دست نخورده است.
+# سه نکته‌ای که مستقیماً از روی همان Dockerfile تعیین شده‌اند:
+#
+#  ۱. Dockerfile ماژول پروژه را با «find . -name wsgi.py | head -n 1» پیدا
+#     می‌کند. فایل .dockerignore تضمین می‌کند فقط config/wsgi.py داخل ایمیج
+#     باشد، وگرنه ممکن است ماژول اشتباهی انتخاب شود.
+#
+#  ۲. Dockerfile خودش migrate و collectstatic را اجرا می‌کند، ولی بدون
+#     DJANGO_SETTINGS_MODULE این دو با تنظیمات dev اجرا می‌شوند در حالی که
+#     gunicorn با production بالا می‌آید. نتیجه‌اش نبودن staticfiles manifest
+#     و خطای ۵۰۰ روی تمام صفحات است. به همین دلیل این متغیر پایین صریحاً ست شده.
+#
+#  ۳. چون migrate هنگام بالا آمدن کانتینر اجرا می‌شود، وب باید منتظر سالم شدن
+#     دیتابیس بماند (depends_on + healthcheck).
+# ---------------------------------------------------------------------------
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-noghteblog}
+      POSTGRES_USER: ${POSTGRES_USER:-noghteblog}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD الزامی است}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER:-noghteblog}" -d "$${POSTGRES_DB:-noghteblog}"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # اگر build پشت پراکسی انجام می‌شود، Dockerfile این دو ARG را می‌پذیرد:
+      # args:
+      #   HTTP_PROXY: ${BUILD_HTTP_PROXY:-}
+      #   HTTPS_PROXY: ${BUILD_HTTPS_PROXY:-}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+
+    environment:
+      # --- حیاتی: بدون این خط، collectstatic با dev اجرا می‌شود و سایت ۵۰۰ می‌دهد
+      DJANGO_SETTINGS_MODULE: config.settings.production
+
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY الزامی است}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?ALLOWED_HOSTS الزامی است، مثلا blog.example.com}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
+      WAGTAILADMIN_BASE_URL: ${WAGTAILADMIN_BASE_URL:-}
+
+      # رمز عبور نباید کاراکتر خاصِ غیرمجاز در URL داشته باشد (@ : / ? # و فاصله).
+      # اگر دارد، اول percent-encode کنید.
+      DATABASE_URL: postgres://${POSTGRES_USER:-noghteblog}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-noghteblog}
+
+      # مسیر رسانه باید با volume پایین یکی باشد.
+      MEDIA_ROOT: /app/media
+
+      WAGTAIL_SITE_NAME: ${WAGTAIL_SITE_NAME:-بلاگ نقطه}
+      WAGTAIL_ADMIN_URL: ${WAGTAIL_ADMIN_URL:-admin}
+      BLOG_API_ENABLED: ${BLOG_API_ENABLED:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+      # پشت traefik ترمینیت TLS انجام می‌شود؛ این‌ها پیش‌فرض درست را دارند و
+      # فقط در صورت نیاز override شوند.
+      SECURE_SSL_REDIRECT: ${SECURE_SSL_REDIRECT:-true}
+
+      # تنظیم gunicorn (خود Dockerfile این‌ها را می‌خواند)
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
+
+    volumes:
+      # تصاویری که ادمین در پنل آپلود می‌کند. بدون این volume، با هر دیپلوی
+      # مجدد همه‌ی تصاویر پاک می‌شوند.
+      - media_data:/app/media
+
+    expose:
+      - "8000"
+
+    healthcheck:
+      # پروداکشن SECURE_SSL_REDIRECT دارد، پس درخواست ساده ۳۰۱ می‌گیرد و
+      # ALLOWED_HOSTS هم شامل 127.0.0.1 نیست و ۴۰۰ می‌دهد. این دو هدر هر دو
+      # مشکل را حل می‌کنند و پاسخ واقعی ۲۰۰ بررسی می‌شود.
+      test:
+        - CMD-SHELL
+        - |
+          python -c "
+          import os, sys, urllib.request
+          host = os.environ.get('ALLOWED_HOSTS', 'localhost').split(',')[0].strip()
+          req = urllib.request.Request('http://127.0.0.1:8000/',
+                                       headers={'Host': host, 'X-Forwarded-Proto': 'https'})
+          sys.exit(0 if urllib.request.urlopen(req, timeout=5).status == 200 else 1)
+          "
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      # اولین اجرا شامل migrate و collectstatic است و طول می‌کشد.
+      start_period: 90s
+
+volumes:
+  postgres_data:
+  media_data:
+
+# ---------------------------------------------------------------------------
+# شبکه‌ی dokploy
+#
+# اگر dokploy شما سرویس‌ها را به شبکه‌ی traefik خودش وصل می‌کند، بخش زیر را
+# فعال کنید و با مدیر آی‌تی چک کنید که نام شبکه و روش تعریف دامنه در شرکت شما
+# چیست؛ در بعضی نسخه‌ها دامنه از رابط کاربری dokploy ست می‌شود و این‌جا لازم نیست.
+#
+# networks:
+#   dokploy-network:
+#     external: true
+#
+# و در سرویس web:
+#   networks:
+#     - default
+#     - dokploy-network
+# ---------------------------------------------------------------------------

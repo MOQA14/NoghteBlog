@@ -1,0 +1,43 @@
+# این فایل برای Dockerfile حیاتی است:
+# CMD با «find . -name wsgi.py | head -n 1» ماژول پروژه را تشخیص می‌دهد.
+# اگر .venv داخل ایمیج کپی شود، چند wsgi.py دیگر هم پیدا می‌شود و ممکن است
+# به‌جای config، یکی از آن‌ها انتخاب شود و اجرا بشکند.
+.venv/
+venv/
+env/
+
+# گیت و CI
+.git/
+.gitignore
+.github/
+
+# پایتون
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# داده‌های محلی که نباید داخل ایمیج بروند
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+*.log
+
+# محیط و اسرار
+.env
+config/settings/local.py
+
+# ویرایشگر
+.vscode/
+.idea/
+.DS_Store
+
+# مستندات و فایل‌های غیرلازم برای اجرا
+docs/
+README.md
+*.md
+requirements-dev.txt
